@@ -1,23 +1,24 @@
 import chroma from 'chroma-js';
 import React, {FC} from 'react';
-import {Pressable, StyleSheet} from 'react-native';
-import {PanGestureHandler} from 'react-native-gesture-handler';
+import {StyleSheet} from 'react-native';
+import {
+  TapGestureHandler,
+  TapGestureHandlerGestureEvent,
+} from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedGestureHandler,
   useAnimatedStyle,
   useSharedValue,
-  // withDecay,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import {Ripple} from './Ripple';
 
 const colors = chroma.scale('Spectral').mode('lch').colors(30);
 
 const Polymorphism: FC = () => {
   const x = useSharedValue(0);
   const y = useSharedValue(0);
-
   const width = useSharedValue(100);
   const height = useSharedValue(100);
   const borderRadius = useSharedValue(0);
@@ -26,55 +27,69 @@ const Polymorphism: FC = () => {
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
-      width: withSpring(width.value),
-      height: withSpring(height.value),
-      borderRadius: withSpring(borderRadius.value),
+      width: withTiming(width.value, {duration: 500}),
+      height: withTiming(height.value, {duration: 500}),
+      borderRadius: withTiming(borderRadius.value, {duration: 500}),
       backgroundColor: withTiming(backgroundColor.value, {duration: 500}),
-      borderWidth: withSpring(borderWidth.value),
+      borderWidth: withTiming(borderWidth.value, {duration: 500}),
       transform: [{translateX: x.value}, {translateY: y.value}],
     };
   });
 
-  const onPress = () => {
-    width.value = Math.floor(Math.random() * 300) + 50;
-    height.value = Math.floor(Math.random() * 300) + 50;
-    borderRadius.value = Math.floor(Math.random() * 50);
-    borderWidth.value = Math.floor(Math.random() * 2);
-    backgroundColor.value = colors[Math.floor(Math.random() * colors.length)];
-  };
+  const centerX = useSharedValue(0);
+  const centerY = useSharedValue(0);
+  const scale = useSharedValue(0);
 
-  const onGestureEvent = useAnimatedGestureHandler({
-    onStart: (_, context: any) => {
-      context.startX = x.value;
-      context.startY = y.value;
-    },
-    onActive(event, context) {
-      x.value = context.startX + event.translationX;
-      y.value = context.startY + event.translationY;
-    },
-    // onEnd: () => {
-    //   x.value = withDecay({
-    //     velocity: 200,
-    //   });
-    //   y.value = withDecay({
-    //     velocity: 200,
-    //   });
-    // },
-  });
+  const rippleOpacity = useSharedValue(1);
+
+  const tapGestureEvent =
+    useAnimatedGestureHandler<TapGestureHandlerGestureEvent>({
+      onStart: tapEvent => {
+        centerX.value = tapEvent.x;
+        centerY.value = tapEvent.y;
+
+        rippleOpacity.value = 1;
+        scale.value = 0;
+        scale.value = withTiming(1, {duration: 1000});
+      },
+      onActive: () => {
+        width.value = Math.floor(Math.random() * 300) + 50;
+        height.value = Math.floor(Math.random() * 300) + 50;
+        borderRadius.value = Math.floor(Math.random() * 50);
+        borderWidth.value = Math.floor(Math.random() * 2);
+        backgroundColor.value =
+          colors[Math.floor(Math.random() * colors.length)];
+      },
+      onFinish: () => {
+        rippleOpacity.value = withTiming(0);
+      },
+    });
 
   return (
-    <SafeAreaView style={styles.contianer}>
-      <Pressable onPress={onPress}>
-        <PanGestureHandler onGestureEvent={onGestureEvent}>
-          <Animated.View style={[animatedStyle, styles.AnimatedBox]} />
-        </PanGestureHandler>
-      </Pressable>
+    <SafeAreaView style={styles.container}>
+      <TapGestureHandler onGestureEvent={tapGestureEvent}>
+        <Animated.View style={[animatedStyle, styles.AnimatedBox]}>
+          <Ripple
+            {...{
+              rippleOpacity,
+              scale,
+              x,
+              y,
+              centerX,
+              centerY,
+              width,
+              height,
+              backgroundColor,
+            }}
+          />
+        </Animated.View>
+      </TapGestureHandler>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  contianer: {
+  container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
@@ -82,6 +97,7 @@ const styles = StyleSheet.create({
   AnimatedBox: {
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
   },
 });
 
